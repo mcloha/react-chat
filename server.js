@@ -98,6 +98,7 @@ io.on('connection', socket => {
         }
     });
 
+    // socket on typing
     socket.on('typing', data => {
         try {
             io.emit('typing', data);

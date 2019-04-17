@@ -70,6 +70,7 @@ export default class Chat extends Component {
             messageSound.play();
         })
 
+        // socket on typing
         socket.on('typing', data => {
             const { currentUser } = this.state;
             const { typing, user } = data;
@@ -163,12 +164,14 @@ export default class Chat extends Component {
         return <ul className="list-group m-4 d-flex flex-column justify-content-end overflow-auto" style={{ maxHeight: '95%' }}>{messagesList}</ul>
     }
 
+    // typing timeout
     timeOutFunction = () => {
         const { currentUser } = this.state;
         this.setState({ typing: false });
         socket.emit('typing', { user: currentUser, typing: false });
     }
 
+    // typing function
     typing = () => {
         const { currentUser, typing } = this.state;
 
