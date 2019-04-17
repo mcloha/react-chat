@@ -1,4 +1,4 @@
-#React-Chat
+# React-Chat
 Simple application build with React and Node.js with help of express and socket.io for learning purpose.
 
 ## Available Scripts
