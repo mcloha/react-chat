@@ -96,5 +96,15 @@ io.on('connection', socket => {
         catch (err) {
             console.error(err);
         }
+    });
+
+    socket.on('typing', data => {
+        try {
+            io.emit('typing', data);
+        }
+        catch(err) {
+            console.error(err);
+        }
+
     })
 })

@@ -8,6 +8,8 @@ const socket = io('192.168.1.167:9999');
 export default class Chat extends Component {
     state = {
         currentUser: null,
+        typing: false,
+        typingTimeOut: undefined,
         // initializing users becouse we dont have a db :)
         users: [
             {
@@ -59,13 +61,31 @@ export default class Chat extends Component {
 
         // message socket (text messages and the notifications).
         socket.on('message', newMessage => {
-             // pushing to messages array and checking for logged users
-            const messages  = this.state.messages;
+            // pushing to messages array and checking for logged users
+            const messages = this.state.messages;
             this.setState({ messages: [...messages, newMessage], loggedUsers: newMessage.users });
 
             // Playing the sound
             const messageSound = document.getElementById('audio');
             messageSound.play();
+        })
+
+        socket.on('typing', data => {
+            const { currentUser } = this.state;
+            const { typing, user } = data;
+
+            if (typing) {
+                if (currentUser) {
+                    if (user.id != currentUser.id) {
+                        this.setState({ typingNotice: `${user.name} is typing...` });
+                    }
+                } else {
+                    this.setState({ typingNotice: `${user.name} is typing...` });
+                }
+            } else {
+                this.setState({ typingNotice: null });
+            }
+
         })
     }
 
@@ -91,6 +111,10 @@ export default class Chat extends Component {
         const { currentUser } = this.state;
         this.setState({ currentUser: null });
         socket.emit('logout', currentUser);
+
+        clearTimeout(this.state.typingTimeOut);
+        this.setState({ typing: false });
+        socket.emit('typing', { user: currentUser, typing: false });
     }
 
     // send message handler
@@ -115,12 +139,12 @@ export default class Chat extends Component {
         const { users, loggedUsers, currentUser } = this.state;
 
         const usersList = users.map((user, i) => {
-            if(loggedUsers && loggedUsers.includes(user.name)) {
-                return <li id={user.id} className="list-group-item" key={i}><i className={`${user.icon} m-1 text-${user.color}`}/>{user.name}<i className="text-success fas fa-signal m-1"/></li>
-            } else if(currentUser){
-                return <li id={user.id} className="list-group-item" key={i}><i className={`${user.icon} m-1`}/>{user.name}</li>
+            if (loggedUsers && loggedUsers.includes(user.name)) {
+                return <li id={user.id} className="list-group-item" key={i}><i className={`${user.icon} m-1 text-${user.color}`} />{user.name}<i className="text-success fas fa-signal m-1" /></li>
+            } else if (currentUser) {
+                return <li id={user.id} className="list-group-item" key={i}><i className={`${user.icon} m-1`} />{user.name}</li>
             } else {
-                return <li id={user.id} className="list-group-item" key={i} onClick={e => this.login(e)}><i className={`${user.icon} m-1`}/>{user.name}</li>
+                return <li id={user.id} className="list-group-item" key={i} onClick={e => this.login(e)}><i className={`${user.icon} m-1`} />{user.name}</li>
             }
         });
         return <ul className="list-group m-4">{usersList}</ul>
@@ -139,8 +163,28 @@ export default class Chat extends Component {
         return <ul className="list-group m-4 d-flex flex-column justify-content-end overflow-auto" style={{ maxHeight: '95%' }}>{messagesList}</ul>
     }
 
-    render() {
+    timeOutFunction = () => {
         const { currentUser } = this.state;
+        this.setState({ typing: false });
+        socket.emit('typing', { user: currentUser, typing: false });
+    }
+
+    typing = () => {
+        const { currentUser, typing } = this.state;
+
+        if (!typing) {
+            this.setState({ typing: true });
+            socket.emit('typing', { user: currentUser, typing: true });
+            this.setState({ typingTimeOut: setTimeout(this.timeOutFunction, 5000) });
+        } else {
+            clearTimeout(this.state.typingTimeOut);
+            this.setState({ typingTimeOut: setTimeout(this.timeOutFunction, 5000) });
+        }
+
+    }
+
+    render() {
+        const { currentUser, typingNotice } = this.state;
 
         return (
             <div>
@@ -148,16 +192,19 @@ export default class Chat extends Component {
                     <div className="w-75 bg-light" style={{ height: '88vh' }}>
                         {this.printMessages()}
                     </div>
-                    <div className="w-25">
-                        {currentUser ? <h5 className="mb-4">hello {currentUser.name}</h5>: null}
-                        {this.printUsers()}
-                        <input className="btn btn-danger" type="button" value="log-out" onClick={() => this.logout()} disabled={!this.state.currentUser} />
+                    <div className="d-flex flex-column justify-content-around w-25">
+                        <div>
+                            {currentUser ? <h5 className="mb-4">hello {currentUser.name}</h5> : null}
+                            {this.printUsers()}
+                            <input className="btn btn-danger" type="button" value="log-out" onClick={() => this.logout()} disabled={!currentUser} />
+                        </div>
+                        <h6 className="text-success">{typingNotice}</h6>
                     </div>
                 </div>
                 <form className="input-group  m-2" onSubmit={e => this.sendMessage(e)} >
-                    <input name="text" className="form-control" type="text" placeholder="enter message..." disabled={!this.state.currentUser} />
+                    <input name="text" className="form-control" type="text" placeholder="enter message..." disabled={!currentUser} onKeyDown={() => this.typing()} />
                     <div className="input-group-prepend">
-                        <input className="btn btn-primary form-control" type="submit" value="SEND" disabled={!this.state.currentUser} />
+                        <input className="btn btn-primary form-control" type="submit" value="SEND" disabled={!currentUser} />
                     </div>
                 </form>
                 <audio id="audio"><source src={messageSound} type="audio/mpeg" /></audio>
