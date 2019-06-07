@@ -31,5 +31,3 @@ and then run:
 
 Then the app will be available at the localhost:9999.
 
-### jenkins works!
-
